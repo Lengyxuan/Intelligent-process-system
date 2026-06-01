@@ -1,14 +1,16 @@
 """
 Lightweight entry for Zhijiang industrial process planning mode.
 
-This PR only isolates the route entry. Process parsing, retrieval,
-simulation, scoring, and expert review are intentionally left for later PRs.
+This entry keeps process planning isolated from the original ARPM role-chat
+path. Retrieval, simulation, scoring, and expert review are intentionally left
+for later PRs.
 """
 from datetime import datetime
 
+from core.process_parser import parse_process_requirement
+
 
 PENDING_MODULES = {
-    "process_parser": "pending",
     "process_query_enhancer": "pending",
     "process_retriever": "pending",
     "process_scorer": "pending",
@@ -17,9 +19,10 @@ PENDING_MODULES = {
 
 
 PLACEHOLDER_REPLY = (
-    "智匠工业模式后端入口已启用。本版本已完成工业模式与原 ARPM 链路的路由隔离。"
-    "后续 PR 将接入工艺需求结构化解析、工艺查询增强、ProcessRetriever、"
-    "ProcessSim 工艺相似度重排、方案生成与专家审核闭环。"
+    "智匠工业模式后端入口已启用，并已完成工艺需求结构化解析。"
+    "本版本会提取材料、批量、结构特征、设备、质量要求和工艺类型等字段。"
+    "后续 PR 将接入工艺查询增强、ProcessRetriever、ProcessSim 工艺相似度重排、"
+    "方案生成与专家审核闭环。"
 )
 
 
@@ -29,21 +32,29 @@ def handle_process_entry(request_data: dict) -> dict:
     session_id = data.get("session_id")
     current_round = data.get("round", 1)
     raw_message = data.get("message", "")
+    requirement_vector = parse_process_requirement(raw_message)
 
     print(
         "[ProcessEntry] "
         "mode=process_planning "
         "process_entry_enabled=true "
+        "requirement_parser_enabled=true "
         f"session_id={session_id} "
         f"round={current_round} "
-        f"raw_message={raw_message!r} "
+        f"raw_query={requirement_vector.get('raw_query')!r} "
+        f"requirement_vector={requirement_vector} "
+        f"missing_fields={requirement_vector.get('missing_fields', [])} "
         f"pending_modules={PENDING_MODULES}"
     )
 
     process_meta = {
         "mode": "process_planning",
         "process_entry_enabled": True,
+        "requirement_parser_enabled": True,
         "raw_message": raw_message,
+        "raw_query": requirement_vector.get("raw_query", ""),
+        "requirement_vector": requirement_vector,
+        "missing_fields": requirement_vector.get("missing_fields", []),
         "pending_modules": PENDING_MODULES,
         "created_at": datetime.now().isoformat(),
     }

@@ -37,6 +37,17 @@
 - [ ] 后端日志可区分 `mode=role_chat` 与 `mode=process_planning`。
 - [ ] 后端日志包含 `process_entry_enabled=true` 和后续模块 pending 状态。
 
+## PR2 工艺需求结构化解析验收
+
+- [ ] 新增 `backend/core/process_parser.py`，并可被直接 import。
+- [ ] `mode=process_planning` 返回 `requirement_vector`。
+- [ ] 示例输入能解析出 `material=铝合金`、`batch=小批量`、`feature=薄壁件`、`process_type=数控铣削`、`quality=高精度`、`equipment=三轴数控铣床`。
+- [ ] 未解析字段返回 `unknown`，并写入 `missing_fields`。
+- [ ] 空输入或 `None` 输入不会导致解析模块崩溃。
+- [ ] `role_chat` 默认链路不调用工艺解析模块。
+- [ ] 后端日志包含 `requirement_parser_enabled=true`、`raw_query`、`requirement_vector` 和 `missing_fields`。
+- [ ] 本 PR 不实现工艺查询增强、ProcessRetriever、ProcessSim、CAD/PDF/图像处理、方案评分或专家审核闭环。
+
 ## 本次不验收
 
 - [ ] 不实现 CAD 解析。
