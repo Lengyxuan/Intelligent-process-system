@@ -27,6 +27,16 @@
 - [ ] text2vec-base-chinese 本地向量模型路径配置保留。
 - [ ] 日志与诊断能力保留。
 
+## PR1 工业模式入口验收
+
+- [ ] `/api/chat` 不传 `mode` 时默认走原 ARPM `role_chat` 链路。
+- [ ] `/api/chat` 传入 `mode=process_planning` 时进入智匠工业模式入口。
+- [ ] 智匠前端请求携带 `mode=process_planning`。
+- [ ] 工业模式返回兼容前端现有字段的占位响应。
+- [ ] 工业模式不进入角色对话、角色记忆、角色一致性或 RAG 生成链路。
+- [ ] 后端日志可区分 `mode=role_chat` 与 `mode=process_planning`。
+- [ ] 后端日志包含 `process_entry_enabled=true` 和后续模块 pending 状态。
+
 ## 本次不验收
 
 - [ ] 不实现 CAD 解析。

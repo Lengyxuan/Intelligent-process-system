@@ -1,4 +1,4 @@
-﻿"""
+"""
 Chat API routes.
 - Each session keeps its own character config.
 - Chat history is isolated by session.
@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime
 from flask import Blueprint, request, jsonify, current_app
 
+from core.process_entry import handle_process_entry
 from core.retriever import retriever
 from core.generator import generator
 from core.memory_manager import memory_manager
@@ -154,6 +155,7 @@ def save_chat_config():
 def handle_chat():
     """Handle a chat request for the current session."""
     data = request.get_json() or {}
+    mode = data.get('mode') or 'role_chat'
     
     # Extract and validate input payload.
     user_input = data.get('message', '').strip()
@@ -166,6 +168,14 @@ def handle_chat():
     session_id = data.get('session_id') or str(uuid.uuid4())
     current_round = data.get('round', 1)
     api_config = data.get('api_config', {})
+
+    data['session_id'] = session_id
+    data['round'] = current_round
+    data['mode'] = mode
+    print(f"[Chat] mode={mode} session_id={session_id} round={current_round}")
+
+    if mode == 'process_planning':
+        return jsonify(handle_process_entry(data))
     
     # 获取会话角色配置；新会话会自动创建默认配置。
     session_config = get_session_config(session_id)

@@ -1,4 +1,4 @@
-﻿const STORAGE_KEYS = {
+const STORAGE_KEYS = {
     api: "arpm.api.config",
     ui: "arpm.ui.config"
 };
@@ -1195,6 +1195,7 @@ function buildChatPayload(message) {
         session_id: State.sessionId,
         round: State.round,
         message,
+        mode: "process_planning",
         api_config: State.apiConfig,
         user_name: State.sessionConfig.user_name,
         user_persona: State.sessionConfig.user_persona,
