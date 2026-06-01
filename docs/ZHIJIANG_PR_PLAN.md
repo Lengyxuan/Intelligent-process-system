@@ -1,29 +1,55 @@
 # 智匠系统后续 PR 计划
 
-PR 1：前端完全替换为智匠系统工作台
+## 已完成基线：前端外壳切换为智匠系统工作台
 
-PR 2：新增工业模式后端入口
+- 前端用户可见名称切换为“智匠系统”。
+- README 和 docs 已切换为智匠系统定位。
+- 原 ARPM 后端 RAG 检索底座保留。
 
-PR 3：新增工艺需求结构化解析
+## PR 1：新增工业模式后端入口
 
-PR 4：新增工艺查询增强
+### 目标
 
-PR 5：新增工艺知识元数据结构
+- 支持 `/api/chat` 请求传入 `mode=process_planning`。
+- 将智匠工业模式入口与原 ARPM `role_chat` 链路隔离。
+- 不传 `mode` 时默认保留原 ARPM 聊天与 RAG 检索链路。
+- 暂不实现工艺解析、检索增强、ProcessRetriever、ProcessSim、图纸/CAD 处理或方案评分。
 
-PR 6：新增 ProcessRetriever，复用原 ARPM 检索底座
+### 验收
 
-PR 7：新增 ProcessSim、CaseQuality、FreshQuality
+- 原 ARPM 链路不受影响。
+- 智匠前端请求能进入 `process_planning` 分支。
+- 后端返回兼容前端现有 schema 的占位响应。
+- 日志能识别 `mode=role_chat` 与 `mode=process_planning`。
 
-PR 8：新增工艺 Prompt 与方案生成
+### 后续待接入
 
-PR 9：新增方案评分与专家审核
+- `process_parser`: pending
+- `process_query_enhancer`: pending
+- `process_retriever`: pending
+- `process_scorer`: pending
+- `process_evaluator`: pending
 
-PR 10：新增知识库反哺
+PR 2：新增工艺需求结构化解析
 
-PR 11：新增文件格式初判与图纸/CAD 上传 MVP
+PR 3：新增工艺查询增强
 
-PR 12：新增模型父节点与视图子证据
+PR 4：新增工艺知识元数据结构
 
-PR 13：新增视图向量检索
+PR 5：新增 ProcessRetriever，复用原 ARPM 检索底座
 
-PR 14：融合文本召回与图像召回
+PR 6：新增 ProcessSim、CaseQuality、FreshQuality
+
+PR 7：新增工艺 Prompt 与方案生成
+
+PR 8：新增方案评分与专家审核
+
+PR 9：新增知识库反哺
+
+PR 10：新增文件格式初判与图纸/CAD 上传 MVP
+
+PR 11：新增模型父节点与视图子证据
+
+PR 12：新增视图向量检索
+
+PR 13：融合文本召回与图像召回
