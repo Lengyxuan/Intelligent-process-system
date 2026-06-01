@@ -22,15 +22,33 @@
 - 后端返回兼容前端现有 schema 的占位响应。
 - 日志能识别 `mode=role_chat` 与 `mode=process_planning`。
 
+### 已接入
+
+- `process_parser`: done in PR2
+
 ### 后续待接入
 
-- `process_parser`: pending
 - `process_query_enhancer`: pending
 - `process_retriever`: pending
 - `process_scorer`: pending
 - `process_evaluator`: pending
 
-PR 2：新增工艺需求结构化解析
+## PR 2：新增工艺需求结构化解析
+
+### 目标
+
+- 新增规则/关键词版 `process_parser`。
+- 在 `mode=process_planning` 工业模式入口中返回 `requirement_vector`。
+- 提取 `feature`、`material`、`batch`、`quality`、`equipment`、`cost_limit`、`time_limit`、`process_type`、`raw_query` 和 `missing_fields`。
+- 暂不实现工艺查询增强、ProcessRetriever、ProcessSim、工艺方案生成、评分、CAD/PDF/图像识别。
+
+### 验收
+
+- `role_chat` 默认链路不调用工艺解析模块。
+- `process_planning` 请求能返回结构化工艺需求。
+- 示例“小批量铝合金薄壁件、数控铣削、高精度、三轴数控铣床”可解析出关键字段。
+- 缺失字段返回 `unknown`，并进入 `missing_fields`。
+- 后端日志能看到 `requirement_parser_enabled=true`、`raw_query`、`requirement_vector` 和 pending 模块状态。
 
 PR 3：新增工艺查询增强
 
