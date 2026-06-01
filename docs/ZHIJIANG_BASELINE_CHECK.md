@@ -48,6 +48,17 @@
 - [ ] 后端日志包含 `requirement_parser_enabled=true`、`raw_query`、`requirement_vector` 和 `missing_fields`。
 - [ ] 本 PR 不实现工艺查询增强、ProcessRetriever、ProcessSim、CAD/PDF/图像处理、方案评分或专家审核闭环。
 
+## PR3 工艺查询增强验收
+
+- [ ] 新增 `backend/core/process_query_enhancer.py`，并可被直接 import。
+- [ ] `mode=process_planning` 返回 `enhanced_query`。
+- [ ] `enhanced_query.process_query` 包含 `[行业=机械加工]` 和 `[任务=工艺规划]`。
+- [ ] 示例输入能在 `process_query` 中生成 `[材料=铝合金]`、`[批量=小批量]`、`[结构特征=薄壁件]`、`[设备资源=三轴数控铣床]`、`[质量要求=高精度]`、`[工艺类型=数控铣削]`。
+- [ ] `unknown` 字段以明确标签形式稳定保留，不导致请求失败。
+- [ ] `process_query` 不包含角色扮演、角色设定、ARPM 等旧定位字段。
+- [ ] `role_chat` 默认链路不调用工艺查询增强模块。
+- [ ] 本 PR 不实现 ProcessRetriever、ProcessSim、CAD/PDF/图像处理、方案评分或专家审核闭环。
+
 ## 本次不验收
 
 - [ ] 不实现 CAD 解析。
