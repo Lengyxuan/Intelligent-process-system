@@ -15,7 +15,7 @@ from core.process_retriever import ProcessRetriever
 PENDING_MODULES = {
     "process_knowledge_schema": "available",
     "process_retriever": "available",
-    "process_scorer": "pending",
+    "process_scorer": "available",
     "process_prompt_builder": "pending",
     "process_generator": "pending",
     "process_evaluator": "pending",
