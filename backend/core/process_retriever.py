@@ -2,15 +2,17 @@
 Process case retriever adapter for Zhijiang industrial mode.
 
 This module retrieves structured process cases from the PR4 local case store.
-It intentionally avoids ProcessSim, case quality scoring, generation, and file
-recognition. The current implementation uses deterministic field matching plus
-a local BM25 fallback over process case text. text2vec/FAISS can be connected in
-a later PR without changing the original ARPM retriever.
+It intentionally avoids generation and file recognition. The current
+implementation uses deterministic field matching plus a local BM25 fallback
+over process case text, then applies ProcessSim and quality scoring. text2vec
+and FAISS can be connected in a later PR without changing the original ARPM
+retriever.
 """
 from __future__ import annotations
 
 from typing import Any, Dict, List, Tuple
 
+from core.process_scorer import ProcessScorer
 from storage.process_case_store import ProcessCaseStore
 from utils.bm25_plus import BM25PlusScorer
 
@@ -66,9 +68,15 @@ def _contains_either(left: str, right: str) -> bool:
 class ProcessRetriever:
     """Retrieve Top-K process cases from the local process case store."""
 
-    def __init__(self, case_store: ProcessCaseStore | None = None, top_k: int = 5):
+    def __init__(
+        self,
+        case_store: ProcessCaseStore | None = None,
+        top_k: int = 5,
+        scorer: ProcessScorer | None = None,
+    ):
         self.case_store = case_store or ProcessCaseStore()
         self.top_k = max(1, int(top_k or 5))
+        self.scorer = scorer or ProcessScorer()
 
     def retrieve(
         self,
@@ -91,7 +99,14 @@ class ProcessRetriever:
             "retrieval_status": {
                 "text_vector": "pending",
                 "bm25": "fallback",
-                "process_sim": "pending",
+                "process_sim": "available",
+            },
+            "scoring_status": {
+                "process_scorer": "available" if vector else "partial",
+                "process_sim": "available" if vector else "partial",
+                "case_quality": "available",
+                "fresh_quality": "available",
+                "rrf": "pending",
             },
         }
 
@@ -126,10 +141,20 @@ class ProcessRetriever:
             ),
             reverse=True,
         )
+        scored_ranked = []
+        for item in ranked:
+            scoring = self.scorer.score_case(
+                vector,
+                item["case"],
+                retrieval_score=item.get("score", item.get("keyword_score", 0.0)),
+            )
+            scored_ranked.append({**item, **scoring})
+
+        scored_ranked.sort(key=lambda item: item.get("final_score", 0.0), reverse=True)
 
         response["results"] = [
             self._format_result(rank, item)
-            for rank, item in enumerate(ranked[:limit], start=1)
+            for rank, item in enumerate(scored_ranked[:limit], start=1)
         ]
         return response
 
@@ -225,6 +250,14 @@ class ProcessRetriever:
             "keyword_score": round(float(item["keyword_score"]), 4),
             "matched_fields": item["matched_fields"],
             "text_preview": preview,
+            "process_sim": item.get("process_sim", 0.0),
+            "process_sim_details": item.get("process_sim_details", {}),
+            "case_quality": item.get("case_quality", 0.0),
+            "case_quality_details": item.get("case_quality_details", {}),
+            "time_decay": item.get("time_decay", 0.0),
+            "fresh_quality": item.get("fresh_quality", 0.0),
+            "final_score": item.get("final_score", 0.0),
+            "score_breakdown": item.get("score_breakdown", {}),
         }
 
     def _has_known_requirements(self, requirement_vector: Dict[str, Any]) -> bool:
