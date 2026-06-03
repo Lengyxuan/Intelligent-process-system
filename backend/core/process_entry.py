@@ -12,6 +12,7 @@ from core.process_query_enhancer import build_process_query
 
 
 PENDING_MODULES = {
+    "process_knowledge_schema": "available",
     "process_retriever": "pending",
     "process_scorer": "pending",
     "process_evaluator": "pending",
