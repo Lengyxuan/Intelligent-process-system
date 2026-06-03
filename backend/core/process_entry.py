@@ -2,23 +2,26 @@
 Lightweight entry for Zhijiang industrial process planning mode.
 
 This entry keeps process planning isolated from the original ARPM role-chat
-path. Retrieval, simulation, scoring, and expert review are intentionally left
-for later PRs.
+path. Expert review and knowledge feedback are intentionally left for later PRs.
 """
 from datetime import datetime
 
 from core.process_parser import parse_process_requirement
 from core.process_query_enhancer import build_process_query
 from core.process_retriever import ProcessRetriever
+from core.process_generator import ProcessGenerator
 
 
 PENDING_MODULES = {
     "process_knowledge_schema": "available",
     "process_retriever": "available",
     "process_scorer": "available",
-    "process_prompt_builder": "pending",
-    "process_generator": "pending",
+    "process_prompt_builder": "available",
+    "process_generator": "available",
     "process_evaluator": "pending",
+    "expert_review": "pending",
+    "knowledge_feedback": "pending",
+    "file_type_router": "pending",
 }
 
 
@@ -46,6 +49,14 @@ def handle_process_entry(request_data: dict) -> dict:
         requirement_vector,
         top_k=data.get("top_k"),
     )
+    generation_result = ProcessGenerator().generate(
+        raw_message,
+        requirement_vector,
+        enhanced_query,
+        process_retrieval,
+    )
+    process_prompt = generation_result["process_prompt"]
+    process_plan = generation_result["process_plan"]
 
     print(
         "[ProcessEntry] "
@@ -54,6 +65,7 @@ def handle_process_entry(request_data: dict) -> dict:
         "requirement_parser_enabled=true "
         "process_query_enhancer_enabled=true "
         "process_retriever_enabled=true "
+        "process_generation_enabled=true "
         f"session_id={session_id} "
         f"round={current_round} "
         f"raw_query={requirement_vector.get('raw_query')!r} "
@@ -61,6 +73,7 @@ def handle_process_entry(request_data: dict) -> dict:
         f"process_query={enhanced_query.get('process_query')!r} "
         f"query_tags={enhanced_query.get('query_tags')} "
         f"process_retrieval_count={len(process_retrieval.get('results', []))} "
+        f"process_plan_route_count={len(process_plan.get('route', []))} "
         f"missing_fields={requirement_vector.get('missing_fields', [])} "
         f"pending_modules={PENDING_MODULES}"
     )
@@ -71,6 +84,7 @@ def handle_process_entry(request_data: dict) -> dict:
         "requirement_parser_enabled": True,
         "process_query_enhancer_enabled": True,
         "process_retriever_enabled": True,
+        "process_generation_enabled": True,
         "raw_message": raw_message,
         "raw_query": requirement_vector.get("raw_query", ""),
         "requirement_vector": requirement_vector,
@@ -78,6 +92,8 @@ def handle_process_entry(request_data: dict) -> dict:
         "process_query": enhanced_query.get("process_query", ""),
         "query_tags": enhanced_query.get("query_tags", {}),
         "process_retrieval": process_retrieval,
+        "process_prompt": process_prompt,
+        "process_plan": process_plan,
         "missing_fields": requirement_vector.get("missing_fields", []),
         "pending_modules": PENDING_MODULES,
         "created_at": datetime.now().isoformat(),
@@ -101,9 +117,13 @@ def handle_process_entry(request_data: dict) -> dict:
             "chat_blocks": [],
             "process_meta": process_meta,
             "process_retrieval": process_retrieval,
+            "process_prompt": process_prompt,
+            "process_plan": process_plan,
         },
         "regeneration_info": None,
         "protocol_info": None,
         "process_meta": process_meta,
         "process_retrieval": process_retrieval,
+        "process_prompt": process_prompt,
+        "process_plan": process_plan,
     }
