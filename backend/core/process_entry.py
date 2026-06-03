@@ -9,12 +9,15 @@ from datetime import datetime
 
 from core.process_parser import parse_process_requirement
 from core.process_query_enhancer import build_process_query
+from core.process_retriever import ProcessRetriever
 
 
 PENDING_MODULES = {
     "process_knowledge_schema": "available",
-    "process_retriever": "pending",
+    "process_retriever": "available",
     "process_scorer": "pending",
+    "process_prompt_builder": "pending",
+    "process_generator": "pending",
     "process_evaluator": "pending",
 }
 
@@ -38,6 +41,11 @@ def handle_process_entry(request_data: dict) -> dict:
         requirement_vector.get("raw_query", raw_message),
         requirement_vector,
     )
+    process_retrieval = ProcessRetriever().retrieve(
+        enhanced_query.get("process_query", ""),
+        requirement_vector,
+        top_k=data.get("top_k"),
+    )
 
     print(
         "[ProcessEntry] "
@@ -45,12 +53,14 @@ def handle_process_entry(request_data: dict) -> dict:
         "process_entry_enabled=true "
         "requirement_parser_enabled=true "
         "process_query_enhancer_enabled=true "
+        "process_retriever_enabled=true "
         f"session_id={session_id} "
         f"round={current_round} "
         f"raw_query={requirement_vector.get('raw_query')!r} "
         f"requirement_vector={requirement_vector} "
         f"process_query={enhanced_query.get('process_query')!r} "
         f"query_tags={enhanced_query.get('query_tags')} "
+        f"process_retrieval_count={len(process_retrieval.get('results', []))} "
         f"missing_fields={requirement_vector.get('missing_fields', [])} "
         f"pending_modules={PENDING_MODULES}"
     )
@@ -60,12 +70,14 @@ def handle_process_entry(request_data: dict) -> dict:
         "process_entry_enabled": True,
         "requirement_parser_enabled": True,
         "process_query_enhancer_enabled": True,
+        "process_retriever_enabled": True,
         "raw_message": raw_message,
         "raw_query": requirement_vector.get("raw_query", ""),
         "requirement_vector": requirement_vector,
         "enhanced_query": enhanced_query,
         "process_query": enhanced_query.get("process_query", ""),
         "query_tags": enhanced_query.get("query_tags", {}),
+        "process_retrieval": process_retrieval,
         "missing_fields": requirement_vector.get("missing_fields", []),
         "pending_modules": PENDING_MODULES,
         "created_at": datetime.now().isoformat(),
@@ -88,8 +100,10 @@ def handle_process_entry(request_data: dict) -> dict:
             "knowledge_blocks": [],
             "chat_blocks": [],
             "process_meta": process_meta,
+            "process_retrieval": process_retrieval,
         },
         "regeneration_info": None,
         "protocol_info": None,
         "process_meta": process_meta,
+        "process_retrieval": process_retrieval,
     }
