@@ -87,7 +87,8 @@ def test_empty_case_store_does_not_crash(tmp_path):
     assert result["total_cases"] == 0
     assert result["results"] == []
     assert result["note"] == "no process cases available"
-    assert result["retrieval_status"]["process_sim"] == "pending"
+    assert result["retrieval_status"]["process_sim"] == "available"
+    assert result["scoring_status"]["process_scorer"] == "available"
 
 
 def test_single_matching_case_is_retrieved(tmp_path):
@@ -104,6 +105,10 @@ def test_single_matching_case_is_retrieved(tmp_path):
     assert first["score"] > 0
     assert first["keyword_score"] > 0
     assert first["semantic_score"] == 0.0
+    assert first["process_sim"] > 0
+    assert first["case_quality"] > 0
+    assert first["fresh_quality"] > 0
+    assert first["final_score"] > 0
     assert first["matched_fields"]["material"] is True
     assert first["matched_fields"]["equipment"] is True
     assert first["matched_fields"]["batch"] is True
@@ -119,7 +124,7 @@ def test_multiple_cases_are_sorted_by_keyword_score(tmp_path):
     result = retriever.retrieve(PROCESS_QUERY, REQUIREMENT_VECTOR)
 
     assert [item["case_id"] for item in result["results"]] == ["CASE_AL_001", "CASE_ST_001"]
-    assert result["results"][0]["keyword_score"] > result["results"][1]["keyword_score"]
+    assert result["results"][0]["final_score"] > result["results"][1]["final_score"]
 
 
 def test_top_k_is_respected(tmp_path):
@@ -168,7 +173,8 @@ def test_return_structure_contains_required_keys(tmp_path):
     assert set(["retriever_enabled", "results", "retrieval_status"]).issubset(result)
     assert result["retrieval_status"]["text_vector"] == "pending"
     assert result["retrieval_status"]["bm25"] == "fallback"
-    assert result["retrieval_status"]["process_sim"] == "pending"
+    assert result["retrieval_status"]["process_sim"] == "available"
+    assert result["scoring_status"]["process_scorer"] == "available"
     assert set(
         [
             "case_id",
@@ -177,15 +183,26 @@ def test_return_structure_contains_required_keys(tmp_path):
             "keyword_score",
             "matched_fields",
             "text_preview",
+            "process_sim",
+            "case_quality",
+            "fresh_quality",
+            "final_score",
         ]
     ).issubset(first)
 
 
-def test_results_do_not_include_process_sim_field(tmp_path):
+def test_results_include_scoring_fields_without_process_plan(tmp_path):
     store = _store(tmp_path)
     _add_aluminum_case(store)
     retriever = ProcessRetriever(case_store=store)
 
     result = retriever.retrieve(PROCESS_QUERY, REQUIREMENT_VECTOR)
 
-    assert "process_sim" not in result["results"][0]
+    first = result["results"][0]
+    assert "process_sim" in first
+    assert "process_sim_details" in first
+    assert "case_quality" in first
+    assert "time_decay" in first
+    assert "fresh_quality" in first
+    assert "final_score" in first
+    assert "process_plan" not in first
