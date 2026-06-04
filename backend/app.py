@@ -1,5 +1,5 @@
 """
-ARPM-v4 主入口
+主入口
 """
 import os
 import sys
@@ -32,10 +32,12 @@ from api.chat import chat_bp
 from api.knowledge import knowledge_bp
 from api.session import session_bp
 from api.diagnose import diagnose_bp
+from api.process_review import process_review_bp
 app.register_blueprint(chat_bp)
 app.register_blueprint(knowledge_bp)
 app.register_blueprint(session_bp)
 app.register_blueprint(diagnose_bp)
+app.register_blueprint(process_review_bp)
 
 # 前端路由
 @app.route('/')
