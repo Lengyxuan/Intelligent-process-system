@@ -10,6 +10,7 @@ from core.process_parser import parse_process_requirement
 from core.process_query_enhancer import build_process_query
 from core.process_retriever import ProcessRetriever
 from core.process_generator import ProcessGenerator
+from core.process_evaluator import ProcessPlanEvaluator
 
 
 PENDING_MODULES = {
@@ -18,7 +19,7 @@ PENDING_MODULES = {
     "process_scorer": "available",
     "process_prompt_builder": "available",
     "process_generator": "available",
-    "process_evaluator": "pending",
+    "process_evaluator": "available",
     "expert_review": "pending",
     "knowledge_feedback": "pending",
     "file_type_router": "pending",
@@ -57,6 +58,11 @@ def handle_process_entry(request_data: dict) -> dict:
     )
     process_prompt = generation_result["process_prompt"]
     process_plan = generation_result["process_plan"]
+    process_evaluation = ProcessPlanEvaluator().evaluate(
+        process_plan,
+        requirement_vector,
+        process_retrieval,
+    )
 
     print(
         "[ProcessEntry] "
@@ -66,6 +72,7 @@ def handle_process_entry(request_data: dict) -> dict:
         "process_query_enhancer_enabled=true "
         "process_retriever_enabled=true "
         "process_generation_enabled=true "
+        "process_evaluator_enabled=true "
         f"session_id={session_id} "
         f"round={current_round} "
         f"raw_query={requirement_vector.get('raw_query')!r} "
@@ -74,6 +81,8 @@ def handle_process_entry(request_data: dict) -> dict:
         f"query_tags={enhanced_query.get('query_tags')} "
         f"process_retrieval_count={len(process_retrieval.get('results', []))} "
         f"process_plan_route_count={len(process_plan.get('route', []))} "
+        f"process_plan_score={process_evaluation.get('plan_score')} "
+        f"risk_flags={process_evaluation.get('risk_flags')} "
         f"missing_fields={requirement_vector.get('missing_fields', [])} "
         f"pending_modules={PENDING_MODULES}"
     )
@@ -85,6 +94,7 @@ def handle_process_entry(request_data: dict) -> dict:
         "process_query_enhancer_enabled": True,
         "process_retriever_enabled": True,
         "process_generation_enabled": True,
+        "process_evaluator_enabled": True,
         "raw_message": raw_message,
         "raw_query": requirement_vector.get("raw_query", ""),
         "requirement_vector": requirement_vector,
@@ -94,6 +104,7 @@ def handle_process_entry(request_data: dict) -> dict:
         "process_retrieval": process_retrieval,
         "process_prompt": process_prompt,
         "process_plan": process_plan,
+        "process_evaluation": process_evaluation,
         "missing_fields": requirement_vector.get("missing_fields", []),
         "pending_modules": PENDING_MODULES,
         "created_at": datetime.now().isoformat(),
@@ -119,6 +130,7 @@ def handle_process_entry(request_data: dict) -> dict:
             "process_retrieval": process_retrieval,
             "process_prompt": process_prompt,
             "process_plan": process_plan,
+            "process_evaluation": process_evaluation,
         },
         "regeneration_info": None,
         "protocol_info": None,
@@ -126,4 +138,5 @@ def handle_process_entry(request_data: dict) -> dict:
         "process_retrieval": process_retrieval,
         "process_prompt": process_prompt,
         "process_plan": process_plan,
+        "process_evaluation": process_evaluation,
     }
