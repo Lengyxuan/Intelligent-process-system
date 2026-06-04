@@ -170,6 +170,7 @@ const State = {
     round: 1,
     messages: [],
     isGenerating: false,
+    currentProcessResult: null,
     kbChunks: [],
     kbFilteredChunks: [],
     chatChunks: [],
@@ -1092,7 +1093,45 @@ function exportCurrentSession() {
     link.remove();
 }
 
-function renderAnalysis(analysis, protocolInfo = null) {
+function renderProcessEvaluation(processEvaluation) {
+    if (!processEvaluation) {
+        return "";
+    }
+    const score = processEvaluation.plan_score ?? "-";
+    const flags = processEvaluation.risk_flags || [];
+    const flagHtml = flags.length
+        ? flags.slice(0, 5).map((flag) => `
+            <div class="rag-meta">${Utils.escapeHtml(flag.level || "-")} · ${Utils.escapeHtml(flag.type || "-")} · ${Utils.escapeHtml(flag.message || "")}</div>
+        `).join("")
+        : '<div class="rag-meta">\u672a\u8bc6\u522b\u5230\u660e\u663e\u98ce\u9669\u6807\u8bb0</div>';
+    const reviewControls = State.currentProcessResult?.process_plan ? `
+        <div class="rag-meta" style="margin-top:8px;">
+            <button class="feedback-btn process-review-action" data-review-status="pass">Pass</button>
+            <button class="feedback-btn process-review-action" data-review-status="modify">Modify</button>
+            <button class="feedback-btn process-review-action" data-review-status="reject">Reject</button>
+        </div>
+    ` : "";
+
+    return `
+        <div class="rag-item" style="margin-bottom:10px;">
+            <div class="rag-header">
+                <span class="rag-source">\u5de5\u827a\u65b9\u6848\u8d28\u91cf\u8bc4\u4f30</span>
+                <span class="rag-score">plan_score ${Utils.escapeHtml(String(score))}</span>
+            </div>
+            <div class="rag-meta">
+                feasibility=${processEvaluation.feasibility_score ?? "-"}
+                \u00b7 cost=${processEvaluation.cost_score ?? "-"}
+                \u00b7 time=${processEvaluation.time_score ?? "-"}
+                \u00b7 quality=${processEvaluation.quality_score ?? "-"}
+                \u00b7 risk=${processEvaluation.risk_score ?? "-"}
+            </div>
+            ${flagHtml}
+            ${reviewControls}
+        </div>
+    `;
+}
+
+function renderAnalysis(analysis, protocolInfo = null, processEvaluation = null) {
     const displayAnalysis = protocolInfo?.original_analysis || analysis;
     const protocolBlock = protocolInfo ? `
         <div class="rag-item" style="margin-bottom:10px;">
@@ -1107,11 +1146,15 @@ function renderAnalysis(analysis, protocolInfo = null) {
             </div>
         </div>
     ` : "";
-    if (!displayAnalysis && !protocolBlock) {
+    const evaluationBlock = renderProcessEvaluation(processEvaluation);
+    if (!displayAnalysis && !protocolBlock && !evaluationBlock) {
         DOM.cotContent.innerHTML = '<div class="empty">\u5f53\u524d\u8f6e\u6ca1\u6709\u989d\u5916\u5206\u6790</div>';
         return;
     }
-    DOM.cotContent.innerHTML = `${protocolBlock}<div class="rag-item"><div class="rag-text">${Utils.formatText(displayAnalysis || "\u65e0\u663e\u5f0f\u5206\u6790\u5185\u5bb9")}</div></div>`;
+    const analysisBlock = displayAnalysis || protocolBlock
+        ? `<div class="rag-item"><div class="rag-text">${Utils.formatText(displayAnalysis || "\u65e0\u663e\u5f0f\u5206\u6790\u5185\u5bb9")}</div></div>`
+        : "";
+    DOM.cotContent.innerHTML = `${evaluationBlock}${protocolBlock}${analysisBlock}`;
 }
 
 async function refreshKnowledgeStats() {
@@ -1159,6 +1202,7 @@ function createNewSession() {
     State.sessionId = Utils.generateSessionId();
     State.sessionName = "";
     State.messages = [];
+    State.currentProcessResult = null;
     State.round = 1;
     renderMessages();
     renderRagContext(null);
@@ -1280,9 +1324,10 @@ async function sendMessage() {
         State.chunkConfig = { ...State.chunkConfig, ...(result.config?.chunk_config || {}) };
         State.tuning = { ...State.tuning, ...(result.config?.tuning_config || {}) };
         State.ablation.similarity_threshold = State.tuning.similarity_threshold;
+        State.currentProcessResult = result.process_plan ? result : null;
         renderMessages();
         renderRagContext(result.rag_context);
-        renderAnalysis(result.analysis || "", result.protocol_info || null);
+        renderAnalysis(result.analysis || "", result.protocol_info || null, result.process_evaluation || result.process_meta?.process_evaluation || null);
         await loadSessions();
         Utils.setStatus("\u5df2\u5b8c\u6210", "success");
     } catch (error) {
@@ -1296,6 +1341,50 @@ async function sendMessage() {
         State.isGenerating = false;
         updateSendButtonState();
     }
+}
+
+async function submitProcessReview(status) {
+    const current = State.currentProcessResult;
+    if (!current?.process_plan) {
+        Utils.showToast("\u6682\u65e0\u53ef\u5ba1\u6838\u7684\u5de5\u827a\u65b9\u6848", "error");
+        return;
+    }
+
+    const comments = window.prompt("\u8bf7\u8f93\u5165\u5ba1\u6838\u610f\u89c1", "") || "";
+    let modifiedPlan = {};
+    if (status === "modify") {
+        const rawModified = window.prompt("\u53ef\u9009\uff1a\u7c98\u8d34 modified_plan JSON\uff0c\u7559\u7a7a\u5219\u4f7f\u7528\u5f53\u524d\u65b9\u6848", "");
+        if (rawModified && rawModified.trim()) {
+            try {
+                modifiedPlan = JSON.parse(rawModified);
+            } catch (error) {
+                Utils.showToast("\u4fee\u6539\u65b9\u6848 JSON \u683c\u5f0f\u9519\u8bef", "error");
+                return;
+            }
+        } else {
+            modifiedPlan = current.process_plan;
+        }
+    }
+
+    const processMeta = current.process_meta || {};
+    const processPlan = current.process_plan || processMeta.process_plan || {};
+    const payload = {
+        status,
+        reviewer: State.sessionConfig.user_name || "expert",
+        comments,
+        raw_query: processMeta.raw_query || processMeta.raw_message || "",
+        requirement_vector: current.requirement_vector || processMeta.requirement_vector || {},
+        process_plan: processPlan,
+        modified_plan: modifiedPlan,
+        process_evaluation: current.process_evaluation || processMeta.process_evaluation || {},
+        reference_cases: processPlan.reference_cases || current.process_retrieval?.results || []
+    };
+
+    const result = await Utils.request("/api/process/review", {
+        method: "POST",
+        body: JSON.stringify(payload)
+    });
+    Utils.showToast(result.success ? `\u5ba1\u6838\u5df2\u63d0\u4ea4\uff1a${result.feedback_status}` : (result.error || "\u5ba1\u6838\u5931\u8d25"), result.success ? "success" : "error");
 }
 
 async function cancelGeneration() {
@@ -1331,7 +1420,7 @@ async function regenerateRound(round) {
             })
         });
         await loadHistory(State.sessionId);
-        renderAnalysis(result.analysis || "", result.protocol_info || null);
+        renderAnalysis(result.analysis || "", result.protocol_info || null, result.process_evaluation || result.process_meta?.process_evaluation || null);
         Utils.setStatus(`\u7b2c ${round} \u8f6e\u5df2\u91cd\u65b0\u751f\u6210`, "success");
     } catch (error) {
         Utils.showToast(error.message, "error");
@@ -1375,6 +1464,7 @@ async function clearCurrentChat() {
             })
         });
         State.messages = [];
+        State.currentProcessResult = null;
         State.round = 1;
         renderMessages();
         renderRagContext(null);
@@ -1404,6 +1494,7 @@ async function clearCurrentChatAndIndex() {
             method: "DELETE"
         });
         State.messages = [];
+        State.currentProcessResult = null;
         State.round = 1;
         renderMessages();
         renderRagContext(null);
@@ -2005,6 +2096,15 @@ function bindEvents() {
         const deleteChatDiag = event.target.closest(".delete-chat-diag");
         if (deleteChatDiag) {
             deleteDiagnosticChunk("chat", deleteChatDiag.dataset.chunkId).catch(console.error);
+            return;
+        }
+
+        const processReview = event.target.closest(".process-review-action");
+        if (processReview) {
+            submitProcessReview(processReview.dataset.reviewStatus).catch((error) => {
+                console.error(error);
+                Utils.showToast(error.message, "error");
+            });
             return;
         }
 
