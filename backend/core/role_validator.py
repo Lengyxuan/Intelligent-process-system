@@ -14,9 +14,8 @@ from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 
-import openai
-
 from config import LLMConfig, CharacterConfigLoader
+from core.openai_compat import create_openai_client
 
 
 class ViolationType(Enum):
@@ -135,7 +134,7 @@ class SemanticValidator:
         
         try:
             # 调用LLM进行验证
-            client = openai.OpenAI(
+            client = create_openai_client(
                 api_key=api_config.get("api_key", ""),
                 base_url=api_config.get("base_url", self.llm_config.DEFAULT_BASE_URL).rstrip("/"),
                 timeout=30.0  # 验证用较短的超时
