@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime
 from flask import Blueprint, request, jsonify, current_app
 
+from core.openai_compat import create_openai_client
 from core.process_entry import handle_process_entry
 from core.retriever import retriever
 from core.generator import generator
@@ -703,8 +704,7 @@ def test_connection():
         return jsonify({'success': False, 'message': 'API Key 不能为空'}), 400
     
     try:
-        import openai
-        client = openai.OpenAI(
+        client = create_openai_client(
             api_key=api_key,
             base_url=base_url.rstrip('/') if base_url else None,
             timeout=15.0
