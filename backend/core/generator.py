@@ -1,10 +1,10 @@
 """
 生成器 - 分析式生成 + 模糊拆解 + 三层规则验证
 """
-import openai
 from typing import List, Dict, Optional, Tuple
 
 from config import LLMConfig, DisambiguationConfig, RegenerationConfig
+from core.openai_compat import create_openai_client
 from utils.text_utils import ARPMParser
 from utils.time_utils import DualTimestamp
 from utils.admin_logger import log_admin
@@ -668,7 +668,7 @@ class Generator:
             tuning = tuning_config or {}
             temperature = max(0.0, min(2.0, float(tuning.get("temperature", self.config.TEMPERATURE))))
             max_tokens = max(64, min(8192, int(tuning.get("max_tokens", self.config.MAX_TOKENS))))
-            client = openai.OpenAI(
+            client = create_openai_client(
                 api_key=api_config.get("api_key", ""),
                 base_url=api_config.get("base_url", self.config.DEFAULT_BASE_URL).rstrip("/"),
                 timeout=self.config.TIMEOUT
