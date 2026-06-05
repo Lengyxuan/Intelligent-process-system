@@ -1092,7 +1092,37 @@ function exportCurrentSession() {
     link.remove();
 }
 
-function renderAnalysis(analysis, protocolInfo = null) {
+function renderProcessEvaluation(processEvaluation) {
+    if (!processEvaluation) {
+        return "";
+    }
+    const score = processEvaluation.plan_score ?? "-";
+    const flags = processEvaluation.risk_flags || [];
+    const flagHtml = flags.length
+        ? flags.slice(0, 5).map((flag) => `
+            <div class="rag-meta">${Utils.escapeHtml(flag.level || "-")} · ${Utils.escapeHtml(flag.type || "-")} · ${Utils.escapeHtml(flag.message || "")}</div>
+        `).join("")
+        : '<div class="rag-meta">\u672a\u8bc6\u522b\u5230\u660e\u663e\u98ce\u9669\u6807\u8bb0</div>';
+
+    return `
+        <div class="rag-item" style="margin-bottom:10px;">
+            <div class="rag-header">
+                <span class="rag-source">\u5de5\u827a\u65b9\u6848\u8d28\u91cf\u8bc4\u4f30</span>
+                <span class="rag-score">plan_score ${Utils.escapeHtml(String(score))}</span>
+            </div>
+            <div class="rag-meta">
+                feasibility=${processEvaluation.feasibility_score ?? "-"}
+                \u00b7 cost=${processEvaluation.cost_score ?? "-"}
+                \u00b7 time=${processEvaluation.time_score ?? "-"}
+                \u00b7 quality=${processEvaluation.quality_score ?? "-"}
+                \u00b7 risk=${processEvaluation.risk_score ?? "-"}
+            </div>
+            ${flagHtml}
+        </div>
+    `;
+}
+
+function renderAnalysis(analysis, protocolInfo = null, processEvaluation = null) {
     const displayAnalysis = protocolInfo?.original_analysis || analysis;
     const protocolBlock = protocolInfo ? `
         <div class="rag-item" style="margin-bottom:10px;">
@@ -1107,11 +1137,15 @@ function renderAnalysis(analysis, protocolInfo = null) {
             </div>
         </div>
     ` : "";
-    if (!displayAnalysis && !protocolBlock) {
+    const evaluationBlock = renderProcessEvaluation(processEvaluation);
+    if (!displayAnalysis && !protocolBlock && !evaluationBlock) {
         DOM.cotContent.innerHTML = '<div class="empty">\u5f53\u524d\u8f6e\u6ca1\u6709\u989d\u5916\u5206\u6790</div>';
         return;
     }
-    DOM.cotContent.innerHTML = `${protocolBlock}<div class="rag-item"><div class="rag-text">${Utils.formatText(displayAnalysis || "\u65e0\u663e\u5f0f\u5206\u6790\u5185\u5bb9")}</div></div>`;
+    const analysisBlock = displayAnalysis || protocolBlock
+        ? `<div class="rag-item"><div class="rag-text">${Utils.formatText(displayAnalysis || "\u65e0\u663e\u5f0f\u5206\u6790\u5185\u5bb9")}</div></div>`
+        : "";
+    DOM.cotContent.innerHTML = `${evaluationBlock}${protocolBlock}${analysisBlock}`;
 }
 
 async function refreshKnowledgeStats() {
@@ -1282,7 +1316,7 @@ async function sendMessage() {
         State.ablation.similarity_threshold = State.tuning.similarity_threshold;
         renderMessages();
         renderRagContext(result.rag_context);
-        renderAnalysis(result.analysis || "", result.protocol_info || null);
+        renderAnalysis(result.analysis || "", result.protocol_info || null, result.process_evaluation || result.process_meta?.process_evaluation || null);
         await loadSessions();
         Utils.setStatus("\u5df2\u5b8c\u6210", "success");
     } catch (error) {
@@ -1331,7 +1365,7 @@ async function regenerateRound(round) {
             })
         });
         await loadHistory(State.sessionId);
-        renderAnalysis(result.analysis || "", result.protocol_info || null);
+        renderAnalysis(result.analysis || "", result.protocol_info || null, result.process_evaluation || result.process_meta?.process_evaluation || null);
         Utils.setStatus(`\u7b2c ${round} \u8f6e\u5df2\u91cd\u65b0\u751f\u6210`, "success");
     } catch (error) {
         Utils.showToast(error.message, "error");
